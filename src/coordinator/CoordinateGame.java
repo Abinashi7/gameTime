@@ -1,19 +1,18 @@
 package coordinator;
 
 import java.rmi.Remote;
+import java.rmi.RemoteException;
 
 public interface CoordinateGame extends Remote {
 
-    void registerServer(int i);
+    void registerServer(int i) throws RemoteException;
 
-    Boolean registerClient(int i);
+    Boolean registerClient(int i) throws RemoteException;
 
-    void populate();
+    void populate() throws RemoteException;
 
-    void getCard();
+    void submitResponse(String response, int id) throws RemoteException;
 
-    void submitResponse(String response, int id);
-
-    void vote(int i);
+    void vote(int i) throws RemoteException;
 
 }

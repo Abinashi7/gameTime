@@ -1,12 +1,17 @@
 package server;
 
+import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class BackupGameTasks implements BackupGame {
+public class BackupGameTasks extends UnicastRemoteObject implements BackupGame {
 
     private ArrayList<String> cards = new ArrayList<>();
     private HashMap<Integer, Integer> players = new HashMap<>();
+
+    protected BackupGameTasks() throws RemoteException {
+    }
 
     public void write(String line) {
         cards.add(line);

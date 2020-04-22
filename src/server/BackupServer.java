@@ -24,8 +24,8 @@ public class BackupServer {
 
     private static void startBackup(){
         try {
-            g = (CoordinateGameTasks) Naming.lookup(
-                    "rmi://localhost/GameServer");
+            g = (CoordinateGame) Naming.lookup(
+                    "rmi://localhost:1099/GameServer");
             System.out.println("Connected to game server");
         } catch (RemoteException | NotBoundException | MalformedURLException e) {
             e.printStackTrace();

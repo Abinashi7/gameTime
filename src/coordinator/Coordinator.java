@@ -4,6 +4,7 @@ import server.BackupServer;
 
 import java.io.IOException;
 import java.rmi.Naming;
+import java.rmi.registry.LocateRegistry;
 
 
 /**
@@ -17,6 +18,7 @@ public class Coordinator extends Thread {
     public Coordinator() {
         try {
             c = new CoordinateGameTasks();
+            LocateRegistry.createRegistry(1099);
             Naming.rebind("rmi://localhost:1099/GameServer", c);
         } catch (Exception e) {
             System.out.println("Trouble: " + e);
