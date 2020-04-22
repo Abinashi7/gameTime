@@ -86,6 +86,7 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         System.out.println(card);
     }
 
+    /** Added this method to open up Scanner for keyboard input. Might not be the best solution */
     public void getResponse() throws RemoteException {
         Scanner keyboard = new Scanner(System.in);
         System.out.print("Response: ");
