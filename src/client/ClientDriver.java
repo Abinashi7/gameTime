@@ -5,10 +5,8 @@ import coordinator.CoordinateGame;
 import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -52,10 +50,29 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         }
     }
 
-    public void drawCard(){
-
+    public void printScore( HashMap<Integer, Integer> scores) throws RemoteException{
+        System.out.println();
+        System.out.println("________SCORES________");
+        for( int key: scores.keySet()){
+            if (key==clientID) {
+                System.out.println("YOU have " + scores.get(key) + " points");
+            } else {
+                System.out.println("Player " + key + ": " + scores.get(key) + " points");
+            }
+        }
+        System.out.println("______________________");
+        System.out.println();
     }
 
+    public void printWinner(int key) throws RemoteException{
+        System.out.println();
+        System.out.println("*******************************");
+        System.out.println("Player " + key  + " is the Winner!!!!!");
+        System.out.println("*******************************");
+        System.out.println();
+        System.out.println("Game is over! Shutting down client..");
+        System.exit(0);
+    }
     public void displayCard(){
         // receive the broadcast from the coordinator and display the card
     }
@@ -64,18 +81,38 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         // submit input response to coordinator with the client ID for tracking
     }
 
-    public void displayResponses(HashMap responses){
+    public void displayResponses(HashMap<Integer, String>  responses){
         //the returned list of all player responses from the coordinator
         // print to client with some sort of label formatting (1: response)
+        int responseCount = 0;
+        for (int key : responses.keySet()){
+            responseCount++;
+            System.out.println(responseCount + ":  " + responses.get(key));
+        }
     }
 
     public void vote(int i){
         // submit the vote choice to the coordinator
     }
 
-    public int gatherVote(String card, ArrayList<String> Responses) {
-        //TODO: game logic displaying options and getting votes
-        return 1;
+    public int gatherVote( HashMap<Integer, String> responses) {
+        System.out.println("Type in the number next to the response you think is the best!");
+        Scanner keyboard = new Scanner(System.in);
+        String response =  keyboard.nextLine();
+        int responseNumber = Integer.parseInt(response);
+        int responseCounter = 0;
+        int winnerKey = -1;
+        String word = "";
+        for (int key : responses.keySet()) {
+            responseCounter++;
+            if (responseCounter==responseNumber){
+                word = responses.get(key);
+                winnerKey = key;
+                break;
+            }
+        }
+        System.out.println("You chose player " + winnerKey + "'s response: " + word);
+        return winnerKey;
     }
 
     public void setId(int id) {
