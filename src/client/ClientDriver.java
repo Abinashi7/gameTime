@@ -49,7 +49,7 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
             if (result == 0) {
                 System.out.println("Registration successful. Waiting for game start...");
             } else if (result == 1) {
-                System.out.println("Registration successful. Game full. Starting...");
+                System.out.println("Registration successful. Game is full and has started.");
             } else {
                 System.out.println("Server full. Please wait for next game.");
                 System.exit(0);
