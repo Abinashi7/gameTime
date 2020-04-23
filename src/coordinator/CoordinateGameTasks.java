@@ -1,8 +1,8 @@
 package coordinator;
 
-import client.Client;
+import client.ClientImpl;
 import server.BackupGame;
-import server.BackupGameTasks;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -10,24 +10,28 @@ import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.LinkedList;
 
-public class CoordinateGameTasks implements CoordinateGame {
+public class CoordinateGameTasks extends UnicastRemoteObject implements CoordinateGame {
 
     private static LinkedList<BackupGame> allServers = new LinkedList<>();
-    private static LinkedList<Client> allClients = new LinkedList<>();
+    private static LinkedList<ClientImpl> allClients = new LinkedList<>();  // Why linkedlist?
     private static Integer totalResponses = 0;
     private static HashMap<Integer, String> responseList = new HashMap<>();
     private static String currentCard = null;
     private static Integer winCondition = 10;
     private static Integer numVotes = 0;
+    private static int roundNumber = 0;
 
+    protected CoordinateGameTasks() throws RemoteException {
+    }
 
     /** register a new server with the coordinator */
     public void registerServer(int id) {
         try {
-            BackupGame s = (BackupGameTasks) Naming.lookup("rmi://localhost/BackupServer" + id);
+            BackupGame s = (BackupGame) Naming.lookup("rmi://localhost:1099/BackupServer" + id);
             allServers.add(s);
         } catch (MalformedURLException | NotBoundException | RemoteException e) {
             e.printStackTrace();
@@ -36,10 +40,20 @@ public class CoordinateGameTasks implements CoordinateGame {
 
     /** register a new client with the coordinator. accepts up to 5 clients
      * for the game, then denies further participants */
-    public Boolean registerClient(int id) {
+    public Boolean registerClient(int id) throws RemoteException{
         if (allClients.size() < 5) {
-            //TODO:
-            // register client, successful
+            try {
+                ClientImpl client = (ClientImpl) Naming.lookup("rmi://localhost:1099/ClientSession" + id);
+                allClients.add(client);
+                System.out.println("Successfully bound back to client #" + id);
+            } catch (NotBoundException e) {
+                System.out.println("Nothing bound to id: " + id + ". Message " + e.getMessage());
+            } catch (RemoteException e) {
+                System.out.println("Remote exception while binding back to client" + e.getMessage());
+            } catch (MalformedURLException e) {
+                System.out.println("MalformedURL binding back to client" + e.getMessage());
+            }
+
             checkGameSize();
             responseList.put(id, null);
             for (int i = 0; i < allServers.size(); i++) {
@@ -53,7 +67,7 @@ public class CoordinateGameTasks implements CoordinateGame {
 
     /** populate each backup server with the same list of cards */
     public void populate() {
-        try (BufferedReader br = new BufferedReader(new FileReader("questions.txt"))) {
+        try (BufferedReader br = new BufferedReader(new FileReader("./src/coordinator/questions.txt"))) {
             String line;
             while ((line = br.readLine()) != null) {
                 for (int i = 0; i < allServers.size(); i++) {
@@ -66,7 +80,7 @@ public class CoordinateGameTasks implements CoordinateGame {
     }
 
     /** get a random card - remove it from all servers */
-    public void getCard() {
+    public static void getNewCard() throws RemoteException {
         int deckSize = allServers.getFirst().getDeckSize();
         int randomCard = (int) Math.floor(Math.random() * Math.floor(deckSize));
         currentCard = allServers.getFirst().getCard(randomCard);
@@ -78,10 +92,9 @@ public class CoordinateGameTasks implements CoordinateGame {
     }
 
     /** broadcast the selected card to all clients */
-    public void broadcastCard(String card){
+    private static void broadcastCard(String card) throws RemoteException{
         for (int i = 0; i < allClients.size(); i++) {
-            //TODO:
-            // broadcast card to all clients
+            allClients.get(i).displayCard(card);
         }
     }
 
@@ -90,11 +103,12 @@ public class CoordinateGameTasks implements CoordinateGame {
         String formattedResponse = currentCard.replaceFirst("_", response);
         responseList.put(id, formattedResponse);
         totalResponses++;
+        System.out.println(formattedResponse);
         checkResponseSize();
     }
 
     /** register the vote - i should always match the id */
-    public void vote(int i) {
+    public void vote(int i) throws RemoteException {
         for (int j = 0; j < allServers.size(); j++) {
             allServers.get(i).vote(i);
         }
@@ -136,18 +150,22 @@ public class CoordinateGameTasks implements CoordinateGame {
     }
 
     /** only start game when 5 clients have registered */
-    private static void checkGameSize(){
+    private static void checkGameSize() throws RemoteException{
         if (allClients.size() == 5){
+            System.out.println("Game full. Starting Round 1");
             startGame();
         }
     }
 
     /** start game by broadcasting start to clients */
-    private static void startGame(){
+    private static void startGame() throws RemoteException {
+        roundNumber++;
         for (int i = 0; i < allClients.size(); i++){
-            //TODO:
-            // broadcast to all clients that game is starting
-            // set game to start in clientDriver
+            allClients.get(i).startRound(roundNumber);
+        }
+        getNewCard();
+        for (int i = 0; i < allClients.size(); i++) {
+            allClients.get(i).getResponse();
         }
     }
 }

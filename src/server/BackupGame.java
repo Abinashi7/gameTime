@@ -1,18 +1,19 @@
 package server;
 
 import java.rmi.Remote;
+import java.rmi.RemoteException;
 
 public interface BackupGame extends Remote {
 
-    void write(String line);
+    void write(String line) throws RemoteException;
 
-    Integer getDeckSize();
+    Integer getDeckSize() throws RemoteException;
 
-    void removeCard(int randomCard);
+    void removeCard(int randomCard) throws RemoteException;
 
-    String getCard(int randomCard);
+    String getCard(int randomCard) throws RemoteException;
 
-    void registerClient(int id);
+    void registerClient(int id) throws RemoteException;
 
-    void vote(int i);
+    void vote(int i) throws RemoteException;
 }
