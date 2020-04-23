@@ -45,8 +45,11 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
 
         try {
             // Then ask the coordinator to register the client.
-            if (coord.registerClient(clientID)) {
+            int result = coord.registerClient(clientID);
+            if (result == 0) {
                 System.out.println("Registration successful. Waiting for game start...");
+            } else if (result == 1) {
+                System.out.println("Registration successful. Game full. Starting...");
             } else {
                 System.out.println("Server full. Please wait for next game.");
                 System.exit(0);

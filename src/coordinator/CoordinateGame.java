@@ -10,7 +10,7 @@ public interface CoordinateGame extends Remote {
 
     void registerServer(int i) throws RemoteException;
 
-    Boolean registerClient(int i) throws RemoteException;
+    int registerClient(int i) throws RemoteException;
 
     void populate() throws RemoteException;
 

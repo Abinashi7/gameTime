@@ -31,6 +31,8 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     private static Integer playerCount = 0; // count of players at start, used for failure checking
     private static Integer numVotes = 0;
     private static int roundNumber = 0;
+    private final Object responselock = new Object();
+    private static final Object voteLock = new Object();
 
     /**
      *  Rule Sets:
@@ -90,10 +92,10 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
      * Registers a client and binds to its RMI registry
      * Saves the client reference in a list for game communication
      * @param id int Client ID
-     * @return True if successful, False if not
+     * @return int result. -1 means failure, 0 means wait for more to register, 1 means game starts
      * @throws RemoteException if RMI communication fails
      */
-    public Boolean registerClient(int id) throws RemoteException{
+    public int registerClient(int id) throws RemoteException{
         if (allClients.size() < minPlayers) {
             try {
                 ClientImpl client = (ClientImpl) Naming.lookup("rmi://localhost:1099/ClientSession" + id);
@@ -108,17 +110,18 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
             }
 
             // Checks if the game is full and starts if it is
-            checkGameSize();
+            int gameFull = checkGameSize() ? 1 : 0;
+
             responseList.put(id, null);
 
             // Records the client on the backup servers
             for (int i = 0; i < allServers.size(); i++) {
                 allServers.get(i).registerClient(id);
             }
-            return true;
+            return gameFull;
         }
         // else fails
-        return false;
+        return -1;
     }
 
     /**
@@ -171,15 +174,17 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
      */
     //TODO handle cards with two blanks  ***Rohan went through and removed 2 cards with 2 blanks. Should be solved
     public void submitResponse(String response, int id) {
-        String formattedResponse = currentCard.replaceFirst("_", response);
-        responseList.put(id, formattedResponse);
-        // checking if id registered in scoring
-        if (!scores.containsKey(id)){
-            scores.put(id, 0);
+        synchronized (responselock) {
+            String formattedResponse = currentCard.replaceFirst("_", response);
+            responseList.put(id, formattedResponse);
+            // checking if id registered in scoring
+            if (!scores.containsKey(id)) {
+                scores.put(id, 0);
+            }
+            totalResponses++;
+            System.out.println("Player " + id + ": " + formattedResponse);
+            checkResponseSize();
         }
-        totalResponses++;
-        System.out.println("Player " + id + ": " + formattedResponse);
-        checkResponseSize();
     }
 
     /** register the vote - it should always match the id */
@@ -292,13 +297,19 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
     }
 
-    /** only start game when minPlayers(5 as default) clients have registered */
-    private static void checkGameSize() throws RemoteException{
+    /**
+     * Starts the game once the minimum number of clients are registered
+     * @return true if the game starts, false if waiting for more
+     * @throws RemoteException
+     */
+    private static boolean checkGameSize() throws RemoteException{
         if (allClients.size() >= minPlayers){
             playerCount = allClients.size();
             System.out.println("Game full with " + playerCount + " players. Starting Round 1");
             startGame();
+            return true;
         }
+        return false;
     }
 
     /** start game by broadcasting start to clients */
@@ -343,10 +354,12 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         public void run() {
             try {
                 int winner = CoordinateGameTasks.allClients.get(clientId).gatherVote(responseList);
-                int score = scores.get(winner);
-                score++;
-                scores.put(winner,score);
-                numVotes++;
+                synchronized (voteLock) {
+                    int score = scores.get(winner);
+                    score++;
+                    scores.put(winner, score);
+                    numVotes++;
+                }
             } catch (RemoteException e) {
                 System.out.println("Remote Exception getting response");
             }
