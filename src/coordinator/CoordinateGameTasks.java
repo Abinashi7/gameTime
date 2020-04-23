@@ -21,7 +21,6 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
 
     private static LinkedList<BackupGame> allServers = new LinkedList<>();
     public static LinkedList<ClientImpl> allClients = new LinkedList<>();
-//    private static List<ClientThread> clientThreads = new ArrayList<>(5);
     private static Integer totalResponses = 0;
     private static HashMap<Integer, String> responseList = new HashMap<>();
     private static String currentCard = null;
@@ -48,10 +47,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         if (allClients.size() < 5) {
             try {
                 ClientImpl client = (ClientImpl) Naming.lookup("rmi://localhost:1099/ClientSession" + id);
-//                ClientThread thread = new ClientThread(this, id);
                 allClients.add(client);
-//                clientThreads.add(thread);
-//                thread.start();
                 System.out.println("Successfully bound back to client #" + id);
             } catch (NotBoundException e) {
                 System.out.println("Nothing bound to id: " + id + ". Message " + e.getMessage());
@@ -172,8 +168,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
         getNewCard();
         for (int i = 0; i < allClients.size(); i++) {
-            ResponseThread thread = new ResponseThread(i);
-            thread.start();
+            new ResponseThread(i).start();
         }
     }
 }
