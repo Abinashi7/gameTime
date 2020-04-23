@@ -12,10 +12,7 @@ import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class CoordinateGameTasks extends UnicastRemoteObject implements CoordinateGame {
 
@@ -23,10 +20,52 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     public static LinkedList<ClientImpl> allClients = new LinkedList<>();
     private static Integer totalResponses = 0;
     private static HashMap<Integer, String> responseList = new HashMap<>();
+    private static HashMap<Integer, Integer> scores = new HashMap<>();   //id, score
     private static String currentCard = null;
-    private static Integer winCondition = 10;
+    private static Integer winCondition = 3; //change wincondition here
+    private static Integer minPlayers = 2; // change minimum players to start game here
+    private static Integer playerCount = 0; // count of players at start, used for failure checking
     private static Integer numVotes = 0;
     private static int roundNumber = 0;
+
+    /**
+     *  Rule Sets:
+     * 1- Standard: 5 players, 30 seconds to send response.
+     *              Client gets list of responses, accepts response for best one
+     *              Coordinator collects voting responses and increments the players score by 1, and announces scores
+     *              if  score==10 there is a winner and game is over
+     *
+     *
+     * 2- Duel Mode: Tournament of 1v1s with all players voting, 30 sec to send response, lose a duel and you are out
+     */
+
+    /**
+     * Rule Set Functions - Ignore this is a potential improvement but not high in priority
+     */
+    private static int ruleset = 0;
+    public String getRuleSetString(int rules) {
+        if (rules==1) {
+            return "Standard Rule Set";
+        } else if (rules==2) {
+            return "Duel Rule Set";
+        } else {
+            return "Rules Not Set";
+        }
+    }
+    public int getRuleSet() {
+        return ruleset;
+    }
+    public void setRuleSet(int rules){
+        if (getRuleSet()==0) {
+            System.out.println("Setting rule set to " + getRuleSetString(rules));
+            ruleset=rules;
+        } else {
+            System.out.println("Changing rule set from " + getRuleSetString(getRuleSet()) + " to " + getRuleSetString(rules));
+            ruleset=rules;
+        }
+    }
+
+
 
     protected CoordinateGameTasks() throws RemoteException {
     }
@@ -44,7 +83,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     /** register a new client with the coordinator. accepts up to 5 clients
      * for the game, then denies further participants */
     public Boolean registerClient(int id) throws RemoteException{
-        if (allClients.size() < 5) {
+        if (allClients.size() < minPlayers) {
             try {
                 ClientImpl client = (ClientImpl) Naming.lookup("rmi://localhost:1099/ClientSession" + id);
                 allClients.add(client);
@@ -102,15 +141,20 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     }
 
     /** collect the submitted responses from the players */
+    //TODO handle cards with two blanks
     public void submitResponse(String response, int id) {
         String formattedResponse = currentCard.replaceFirst("_", response);
         responseList.put(id, formattedResponse);
+        // checking if id registered in scoring
+        if (!scores.containsKey(id)){
+            scores.put(id, 0);
+        }
         totalResponses++;
-        System.out.println(formattedResponse);
+        System.out.println("Player " + id + ": " + formattedResponse);
         checkResponseSize();
     }
 
-    /** register the vote - i should always match the id */
+    /** register the vote - it should always match the id */
     public void vote(int i) throws RemoteException {
         for (int j = 0; j < allServers.size(); j++) {
             allServers.get(i).vote(i);
@@ -120,26 +164,65 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
 
     /** waits to broadcast results until all votes are in */
     private void checkVoteTally() {
-        if (numVotes == 5) {
+        if (numVotes == playerCount) {
             displayScore();
         }
     }
 
-    /** checks for a winner and displays the score */
+    /** checks for a winner and displays the score on server and every client */
     private void displayScore() {
-        //TODO:
-        // broadcast score for each player and check winner
-        checkWinner();
+        for( int key: scores.keySet()){
+            System.out.println("Player " + key + ": " + scores.get(key) + " points");
+        }
+        for (int i = 0; i < allClients.size(); i++){
+            try {
+                allClients.get(i).printScore(scores);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+        int isWinner = checkWinner();
+        if (isWinner!=-1){
+            for (int i = 0; i < allClients.size(); i++){
+                try {
+                    allClients.get(i).printWinner(isWinner);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+            //when no more clients, kill coordinator
+            while(allClients.size()>0){
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            System.out.println("Game is over! Shutting down coordinator..");
+            //TODO: EXIT GRACEFULLY
+        }
     }
 
-    /** checks for a winner and displays the score */
-    private void checkWinner() {
-        //TODO: 
+    /** checks for a winner and displays the score, returns -1 if no winner
+     * and returns the id of the winning player if a player is found
+     */
+    private int checkWinner() {
+        for( int key: scores.keySet()){
+            if (scores.get(key)>=winCondition){
+                System.out.println();
+                System.out.println("*******************************");
+                System.out.println("Player " + key  + " is the Winner!!!!!");
+                System.out.println("*******************************");
+                System.out.println();
+                return key;
+            }
+        }
+        return -1;
     }
 
     /** when response size = number of players, continue */
     private void checkResponseSize() {
-        if (totalResponses == 5) {
+        if (totalResponses == playerCount) {
             broadcastResponses();
         }
     }
@@ -147,15 +230,42 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     /** broadcast the response list ot all players */
     private void broadcastResponses() {
         for (int i = 0; i < allClients.size(); i++) {
-            //TODO:
-            // broadcast responses back to all clients
+            try {
+                allClients.get(i).displayResponses(responseList);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+        getVotes();
+    }
+    /** collect votes from players */
+    private void getVotes() {
+        numVotes=0;
+        for (int i = 0; i < allClients.size(); i++) {
+            new VoteThread(i).start();
+        }
+        while(numVotes<allClients.size()){
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        displayScore();
+
+        try {
+            totalResponses=0;
+            startGame();
+        } catch (RemoteException e) {
+            e.printStackTrace();
         }
     }
 
-    /** only start game when 5 clients have registered */
+    /** only start game when minPlayers(5 as default) clients have registered */
     private static void checkGameSize() throws RemoteException{
-        if (allClients.size() == 5){
-            System.out.println("Game full. Starting Round 1");
+        if (allClients.size() >= minPlayers){
+            playerCount = allClients.size();
+            System.out.println("Game full with " + playerCount + " players. Starting Round 1");
             startGame();
         }
     }
@@ -163,15 +273,46 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     /** start game by broadcasting start to clients */
     private static void startGame() throws RemoteException {
         roundNumber++;
+        System.out.println("Starting round " + roundNumber);
+
+        try {
+            Thread.sleep(2000); //this is here to improve the flow of the game
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         for (int i = 0; i < allClients.size(); i++){
             allClients.get(i).startRound(roundNumber);
         }
+
         getNewCard();
         for (int i = 0; i < allClients.size(); i++) {
             new ResponseThread(i).start();
         }
     }
+
+    static class VoteThread extends Thread {
+        int clientId;
+
+        public VoteThread(int id) {
+            clientId = id;
+        }
+
+        @Override
+        public void run() {
+            try {
+                int winner = CoordinateGameTasks.allClients.get(clientId).gatherVote(responseList);
+                int score = scores.get(winner);
+                score++;
+                scores.put(winner,score);
+                numVotes++;
+            } catch (RemoteException e) {
+                System.out.println("Remote Exception getting response");
+            }
+        }
+    }
 }
+
 
 class ResponseThread extends Thread {
     int clientId;
@@ -190,3 +331,4 @@ class ResponseThread extends Thread {
     }
 
 }
+

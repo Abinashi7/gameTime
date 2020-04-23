@@ -37,7 +37,6 @@ public class Coordinator extends Thread {
             Thread serverThread = new Thread();
             serverThread.start();
         }
-
         c.populate();
     }
 }
