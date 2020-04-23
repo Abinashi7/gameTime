@@ -8,10 +8,18 @@ import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 
+/**
+ * Backup server class. Spun up by the coordinator.
+ * Keeps track of the game state and cards for reference by coordinator
+ */
 public class BackupServer {
 
     static CoordinateGame g = null;
 
+    /**
+     * Constructor that binds the server to an RMI Registry
+     * @param id int Server ID
+     */
     public BackupServer(int id)  {
         try {
             BackupGame c = new BackupGameTasks();
@@ -22,6 +30,9 @@ public class BackupServer {
         startBackup();
     }
 
+    /**
+     * Binds back to the coordinator to prepare for backing up
+     */
     private static void startBackup(){
         try {
             g = (CoordinateGame) Naming.lookup(

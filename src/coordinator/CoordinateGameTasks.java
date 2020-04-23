@@ -14,6 +14,10 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 
+/**
+ * RMI class for the Coordinator/game server. Handles all communication to and from clients
+ * as well as backing up information on backup servers
+ */
 public class CoordinateGameTasks extends UnicastRemoteObject implements CoordinateGame {
 
     private static LinkedList<BackupGame> allServers = new LinkedList<>();
@@ -65,12 +69,14 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
     }
 
-
-
+    /** RMI constructor */
     protected CoordinateGameTasks() throws RemoteException {
     }
 
-    /** register a new server with the coordinator */
+    /**
+     * Registers a new backup server with the coordinator and stores the reference in a list
+     * @param id int Server ID
+     */
     public void registerServer(int id) {
         try {
             BackupGame s = (BackupGame) Naming.lookup("rmi://localhost:1099/BackupServer" + id);
@@ -80,8 +86,13 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
     }
 
-    /** register a new client with the coordinator. accepts up to 5 clients
-     * for the game, then denies further participants */
+    /**
+     * Registers a client and binds to its RMI registry
+     * Saves the client reference in a list for game communication
+     * @param id int Client ID
+     * @return True if successful, False if not
+     * @throws RemoteException if RMI communication fails
+     */
     public Boolean registerClient(int id) throws RemoteException{
         if (allClients.size() < minPlayers) {
             try {
@@ -96,8 +107,11 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
                 System.out.println("MalformedURL binding back to client" + e.getMessage());
             }
 
+            // Checks if the game is full and starts if it is
             checkGameSize();
             responseList.put(id, null);
+
+            // Records the client on the backup servers
             for (int i = 0; i < allServers.size(); i++) {
                 allServers.get(i).registerClient(id);
             }
@@ -107,7 +121,9 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         return false;
     }
 
-    /** populate each backup server with the same list of cards */
+    /**
+     * Populates each backup server with the list of cards
+     */
     public void populate() {
         try (BufferedReader br = new BufferedReader(new FileReader("./src/coordinator/questions.txt"))) {
             String line;
@@ -121,7 +137,11 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
     }
 
-    /** get a random card - remove it from all servers */
+    /**
+     * Gets a random card from a backup server
+     * Removes the card from all servers to avoid duplicate cards in the same game
+     * @throws RemoteException if RMI communication fails
+     */
     public static void getNewCard() throws RemoteException {
         int deckSize = allServers.getFirst().getDeckSize();
         int randomCard = (int) Math.floor(Math.random() * Math.floor(deckSize));
@@ -133,15 +153,23 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         broadcastCard(currentCard);
     }
 
-    /** broadcast the selected card to all clients */
+    /**
+     * Broadcasts the selected card to all clients
+     * @param card String game card
+     * @throws RemoteException if RMI communication fails
+     */
     private static void broadcastCard(String card) throws RemoteException{
         for (int i = 0; i < allClients.size(); i++) {
             allClients.get(i).displayCard(card);
         }
     }
 
-    /** collect the submitted responses from the players */
-    //TODO handle cards with two blanks
+    /**
+     * Formats and submits the responses from the clients
+     * @param response String response from client
+     * @param id int client ID
+     */
+    //TODO handle cards with two blanks  ***Rohan went through and removed 2 cards with 2 blanks. Should be solved
     public void submitResponse(String response, int id) {
         String formattedResponse = currentCard.replaceFirst("_", response);
         responseList.put(id, formattedResponse);
@@ -157,6 +185,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     /** register the vote - it should always match the id */
     public void vote(int i) throws RemoteException {
         for (int j = 0; j < allServers.size(); j++) {
+            // TODO: SHOULD THIS BE SERVERS.GET(J) OR IS IT SUPPOSED TO BE I???
             allServers.get(i).vote(i);
         }
         checkVoteTally();
@@ -203,7 +232,8 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
     }
 
-    /** checks for a winner and displays the score, returns -1 if no winner
+    /**
+     * checks for a winner and displays the score, returns -1 if no winner
      * and returns the id of the winning player if a player is found
      */
     private int checkWinner() {
@@ -238,6 +268,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
         getVotes();
     }
+
     /** collect votes from players */
     private void getVotes() {
         numVotes=0;
@@ -291,13 +322,23 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
     }
 
+    /**
+     * Helper thread to handle concurrent voting
+     */
     static class VoteThread extends Thread {
         int clientId;
 
+        /**
+         * Constructor for a thread connected to a specific client
+         * @param id int client ID
+         */
         public VoteThread(int id) {
             clientId = id;
         }
 
+        /**
+         * Thread gathers vote from client and increments the score of the voted for client
+         */
         @Override
         public void run() {
             try {
@@ -313,14 +354,23 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     }
 }
 
-
+/**
+ * Helper thread to concurrently accept responses from all clients
+ */
 class ResponseThread extends Thread {
     int clientId;
 
+    /**
+     * Constructor for a thread connected to a specific client
+     * @param id int client ID
+     */
     public ResponseThread(int id) {
         clientId = id;
     }
 
+    /**
+     * Requests the client response and has the client submit it to the coordinator
+     */
     @Override
     public void run() {
         try {

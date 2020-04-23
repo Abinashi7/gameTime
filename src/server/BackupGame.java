@@ -3,6 +3,9 @@ package server;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
+/**
+ * Remote interface for Backup servers
+ */
 public interface BackupGame extends Remote {
 
     void write(String line) throws RemoteException;

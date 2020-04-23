@@ -4,6 +4,9 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.HashMap;
 
+/**
+ * Remote Interface for ClientDriver
+ */
 public interface ClientImpl extends Remote {
     void setId(int id) throws RemoteException;
 
@@ -11,7 +14,7 @@ public interface ClientImpl extends Remote {
 
     void getResponse() throws RemoteException;
 
-    int gatherVote(HashMap<Integer, String> responses) throws RemoteException; // Display the options and get back the vote for the current round
+    int gatherVote(HashMap<Integer, String> responses) throws RemoteException;
 
     void connectToCoord() throws RemoteException;
 
