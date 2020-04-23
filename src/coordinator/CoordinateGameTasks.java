@@ -9,15 +9,18 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 
 public class CoordinateGameTasks extends UnicastRemoteObject implements CoordinateGame {
 
     private static LinkedList<BackupGame> allServers = new LinkedList<>();
-    private static LinkedList<ClientImpl> allClients = new LinkedList<>();  // Why linkedlist?
+    public static LinkedList<ClientImpl> allClients = new LinkedList<>();
     private static Integer totalResponses = 0;
     private static HashMap<Integer, String> responseList = new HashMap<>();
     private static String currentCard = null;
@@ -165,7 +168,25 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
         getNewCard();
         for (int i = 0; i < allClients.size(); i++) {
-            allClients.get(i).getResponse();
+            new ResponseThread(i).start();
         }
     }
+}
+
+class ResponseThread extends Thread {
+    int clientId;
+
+    public ResponseThread(int id) {
+        clientId = id;
+    }
+
+    @Override
+    public void run() {
+        try {
+            CoordinateGameTasks.allClients.get(clientId).getResponse();
+        } catch (RemoteException e) {
+            System.out.println("Remote Exception getting response");
+        }
+    }
+
 }
