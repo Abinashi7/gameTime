@@ -27,9 +27,9 @@ public class Client {
 
     public static void main(String[] args) {
         new Client(new Random().nextInt(1000));
-        new Client(new Random().nextInt(1000));
-        new Client(new Random().nextInt(1000));
-        new Client(new Random().nextInt(1000));
-        new Client(new Random().nextInt(1000));
+//        new Client(new Random().nextInt(1000));
+//        new Client(new Random().nextInt(1000));
+//        new Client(new Random().nextInt(1000));
+//        new Client(new Random().nextInt(1000));
     }
 }

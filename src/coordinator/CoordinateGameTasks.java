@@ -9,15 +9,19 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 
 public class CoordinateGameTasks extends UnicastRemoteObject implements CoordinateGame {
 
     private static LinkedList<BackupGame> allServers = new LinkedList<>();
-    private static LinkedList<ClientImpl> allClients = new LinkedList<>();  // Why linkedlist?
+//    private static LinkedList<ClientImpl> allClients = new LinkedList<>();
+    private static List<ClientThread> clientThreads = new ArrayList<>(5);
     private static Integer totalResponses = 0;
     private static HashMap<Integer, String> responseList = new HashMap<>();
     private static String currentCard = null;
@@ -41,18 +45,21 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     /** register a new client with the coordinator. accepts up to 5 clients
      * for the game, then denies further participants */
     public Boolean registerClient(int id) throws RemoteException{
-        if (allClients.size() < 5) {
-            try {
-                ClientImpl client = (ClientImpl) Naming.lookup("rmi://localhost:1099/ClientSession" + id);
-                allClients.add(client);
+        if (clientThreads.size() < 5) {
+//            try {
+//                ClientImpl client = (ClientImpl) Naming.lookup("rmi://localhost:1099/ClientSession" + id);
+                ClientThread thread = new ClientThread(this, id);
+//                allClients.add(client);
+                clientThreads.add(thread);
+                thread.start();
                 System.out.println("Successfully bound back to client #" + id);
-            } catch (NotBoundException e) {
-                System.out.println("Nothing bound to id: " + id + ". Message " + e.getMessage());
-            } catch (RemoteException e) {
-                System.out.println("Remote exception while binding back to client" + e.getMessage());
-            } catch (MalformedURLException e) {
-                System.out.println("MalformedURL binding back to client" + e.getMessage());
-            }
+//            } catch (NotBoundException e) {
+//                System.out.println("Nothing bound to id: " + id + ". Message " + e.getMessage());
+//            } catch (RemoteException e) {
+//                System.out.println("Remote exception while binding back to client" + e.getMessage());
+//            } catch (MalformedURLException e) {
+//                System.out.println("MalformedURL binding back to client" + e.getMessage());
+//            }
 
             checkGameSize();
             responseList.put(id, null);
@@ -93,8 +100,8 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
 
     /** broadcast the selected card to all clients */
     private static void broadcastCard(String card) throws RemoteException{
-        for (int i = 0; i < allClients.size(); i++) {
-            allClients.get(i).displayCard(card);
+        for (int i = 0; i < clientThreads.size(); i++) {
+            clientThreads.get(i).client.displayCard(card);
         }
     }
 
@@ -143,7 +150,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
 
     /** broadcast the response list ot all players */
     private void broadcastResponses() {
-        for (int i = 0; i < allClients.size(); i++) {
+        for (int i = 0; i < clientThreads.size(); i++) {
             //TODO:
             // broadcast responses back to all clients
         }
@@ -151,7 +158,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
 
     /** only start game when 5 clients have registered */
     private static void checkGameSize() throws RemoteException{
-        if (allClients.size() == 5){
+        if (clientThreads.size() == 5){
             System.out.println("Game full. Starting Round 1");
             startGame();
         }
@@ -160,12 +167,32 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     /** start game by broadcasting start to clients */
     private static void startGame() throws RemoteException {
         roundNumber++;
-        for (int i = 0; i < allClients.size(); i++){
-            allClients.get(i).startRound(roundNumber);
+        for (int i = 0; i < clientThreads.size(); i++){
+            clientThreads.get(i).client.startRound(roundNumber);
         }
         getNewCard();
-        for (int i = 0; i < allClients.size(); i++) {
-            allClients.get(i).getResponse();
+        for (int i = 0; i < clientThreads.size(); i++) {
+            clientThreads.get(i).client.getResponse();
         }
     }
+}
+
+class ClientThread extends Thread {
+    ClientImpl client = null;
+    CoordinateGame coord = null;
+
+    public ClientThread(CoordinateGame coord, int clientId) {
+        this.coord = coord;
+        try {
+            client = (ClientImpl) Naming.lookup("rmi://localhost:1099/ClientSession" + clientId);
+        } catch (Exception e) {
+            System.out.println("Exception binding client");
+        }
+    }
+
+    @Override
+    public void run() {
+        super.run();
+    }
+
 }
