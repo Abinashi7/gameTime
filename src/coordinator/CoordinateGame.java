@@ -3,6 +3,9 @@ package coordinator;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
+/**
+ * Remote Interface for the game Coordinator
+ */
 public interface CoordinateGame extends Remote {
 
     void registerServer(int i) throws RemoteException;

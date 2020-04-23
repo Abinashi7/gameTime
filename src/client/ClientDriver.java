@@ -11,20 +11,26 @@ import java.util.HashMap;
 import java.util.Scanner;
 
 // responsible to make calls to the coordinator that will connect the player with a server
+
+/**
+ * RMI client logic that makes calls to the coordinator and handles client side
+ * game execution
+ */
 public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
 
     static CoordinateGame coord;
     private Integer clientID;
 
+    /** RMI constructor */
     protected ClientDriver() throws RemoteException {
     }
 
-    public void startGame(){
-        // announce to client that game is starting
-    }
-
+    /**
+     * Binds to the Coordinator/game server's RMI registry then
+     * asks the coordinator to bind back by calling its registerClient method
+     */
     public void connectToCoord() {
-        try {
+        try {  // First bind to the coordinator
             coord = (CoordinateGame) Naming.lookup(
                     "rmi://localhost:1099/GameServer");
             System.out.println("Connected to game server!");
@@ -38,7 +44,7 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         }
 
         try {
-            /** placeholder to register individual clients with the coordinator **/
+            // Then ask the coordinator to register the client.
             if (coord.registerClient(clientID)) {
                 System.out.println("Registration successful. Waiting for game start...");
             } else {
@@ -50,6 +56,11 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         }
     }
 
+    /**
+     * Prints the current scores for all the players
+     * @param scores Hashmap<Id, score> passed from coordinator
+     * @throws RemoteException if RMI communication fails
+     */
     public void printScore( HashMap<Integer, Integer> scores) throws RemoteException{
         System.out.println();
         System.out.println("________SCORES________");
@@ -64,6 +75,11 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         System.out.println();
     }
 
+    /**
+     * Prints the winning client Id number with a message
+     * @param key int client ID
+     * @throws RemoteException if RMI communication fails
+     */
     public void printWinner(int key) throws RemoteException{
         System.out.println();
         System.out.println("*******************************");
@@ -73,16 +89,13 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         System.out.println("Game is over! Shutting down client..");
         System.exit(0);
     }
-    public void displayCard(){
-        // receive the broadcast from the coordinator and display the card
-    }
 
-    public void submitResponse(String response){
-        // submit input response to coordinator with the client ID for tracking
-    }
-
+    /**
+     * Displays all responses for the round for the player to vote on
+     * @param responses Hashmap of all recorded responses for the round
+     */
     public void displayResponses(HashMap<Integer, String>  responses){
-        //the returned list of all player responses from the coordinator
+        // the returned list of all player responses from the coordinator
         // print to client with some sort of label formatting (1: response)
         int responseCount = 0;
         for (int key : responses.keySet()){
@@ -91,10 +104,12 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         }
     }
 
-    public void vote(int i){
-        // submit the vote choice to the coordinator
-    }
-
+    /**
+     * Asks the client to vote on the best response. Takes keyboard input for the number of the vote
+     * and prints the voted for message
+     * @param responses Hashmap of all recorded reponses for the round
+     * @return
+     */
     public int gatherVote( HashMap<Integer, String> responses) {
         System.out.println("Type in the number next to the response you think is the best!");
         Scanner keyboard = new Scanner(System.in);
@@ -115,15 +130,26 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         return winnerKey;
     }
 
+    /**
+     * Saves client ID
+     * @param id int client ID
+     */
     public void setId(int id) {
         clientID = id;
     }
 
+    /**
+     * Prints the card on the next line
+     * @param card String game card
+     */
     public void displayCard(String card) {
         System.out.println(card);
     }
 
-    /** Added this method to open up Scanner for keyboard input. Might not be the best solution */
+    /**
+     * Takes keyboard input for a response to the displayed card
+     * @throws RemoteException if RMI communication fails
+     */
     public void getResponse() throws RemoteException {
         Scanner keyboard = new Scanner(System.in);
         System.out.print("Response: ");
@@ -132,6 +158,10 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         coord.submitResponse(response, clientID);
     }
 
+    /**
+     * Prints the round number at the beginning of each round
+     * @param round int round number
+     */
     public void startRound(int round) {
         System.out.println("Starting round " + round);
 
