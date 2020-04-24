@@ -58,7 +58,7 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
             if (result == 0) {
                 System.out.println("Registration successful. Waiting for game start...");
             } else if (result == 1) {
-                System.out.println("Registration successful. Game is full and has started.");
+//                System.out.println("Registration successful. Game is full and has started.");
             } else {
                 System.out.println("Server full. Please wait for next game.");
                 System.exit(0);
@@ -212,7 +212,7 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
             result.get(15, TimeUnit.SECONDS);
             executor.shutdown();
         } catch (Exception e) {
-            System.out.println("Exception caught " + e.getMessage());
+            System.out.println("Took too long to respond " );
             if (response.equals("???")) {
                 coord.submitResponse(response, clientID);
             }
