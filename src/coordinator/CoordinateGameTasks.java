@@ -347,7 +347,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         public void run() {
             try {
                 int winner = CoordinateGameTasks.allClients.get(clientId).gatherVote(responseList);
-                if (winner != -1 && winner <= allClients.size()) {
+                if (winner != -1) {
                     synchronized (voteLock) {
                         int score = scores.get(winner);
                         score++;
