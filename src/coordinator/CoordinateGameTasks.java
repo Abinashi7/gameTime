@@ -4,6 +4,7 @@ import client.ClientImpl;
 import server.BackupGame;
 
 import java.io.BufferedReader;
+import java.io.EOFException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -172,7 +173,6 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
      * @param response String response from client
      * @param id int client ID
      */
-    //TODO handle cards with two blanks  ***Rohan went through and removed 2 cards with 2 blanks. Should be solved
     public void submitResponse(String response, int id) {
         synchronized (responselock) {
             String formattedResponse = currentCard.replaceFirst("_", response);
@@ -224,16 +224,9 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
                     e.printStackTrace();
                 }
             }
-            //when no more clients, kill coordinator
-            while(allClients.size()>0){
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-            System.out.println("Game is over! Shutting down coordinator..");
-            //TODO: EXIT GRACEFULLY
+
+            System.out.println("Game is over! Shutting down coordinator...");
+            System.exit(0);
         }
     }
 

@@ -17,5 +17,4 @@ public interface CoordinateGame extends Remote {
     void submitResponse(String response, int id) throws RemoteException;
 
     void vote(int i) throws RemoteException;
-
 }

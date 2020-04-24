@@ -6,6 +6,8 @@ import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Scanner;
@@ -83,14 +85,31 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
      * @param key int client ID
      * @throws RemoteException if RMI communication fails
      */
-    public void printWinner(int key) throws RemoteException{
+    public void printWinner(int key) throws RemoteException {
         System.out.println();
         System.out.println("*******************************");
         System.out.println("Player " + key  + " is the Winner!!!!!");
         System.out.println("*******************************");
         System.out.println();
         System.out.println("Game is over! Shutting down client..");
-        System.exit(0);
+
+        // Unbind the RMI registry and remove the remote object
+        try {
+            Naming.unbind("rmi://localhost:1099/GameServer");
+            UnicastRemoteObject.unexportObject(this, true);
+        } catch (Exception e) {
+            System.out.println("Closing...");
+        }
+
+        // Thread to wait and allow other clients to close
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                System.out.println("Sleep interrupted");
+            }
+            System.exit(0);
+        }).start();
     }
 
     /**
