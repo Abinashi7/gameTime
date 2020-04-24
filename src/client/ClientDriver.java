@@ -2,15 +2,20 @@ package client;
 
 import coordinator.CoordinateGame;
 
-import java.io.InputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.*;
+import java.sql.Time;
+import java.util.HashMap;
+import java.util.Scanner;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.*;
 
 // responsible to make calls to the coordinator that will connect the player with a server
@@ -23,10 +28,8 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
 
     static CoordinateGame coord;
     private Integer clientID;
-    private String response="";
-    TimerTask task;
-    Timer timer;
-    private String responseNum="";
+    private String response;
+
     /** RMI constructor */
     protected ClientDriver() throws RemoteException {
     }
@@ -55,7 +58,7 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
             if (result == 0) {
                 System.out.println("Registration successful. Waiting for game start...");
             } else if (result == 1) {
-//                System.out.println("Registration successful. Game is full and has started.");
+                System.out.println("Registration successful. Game is full and has started.");
             } else {
                 System.out.println("Server full. Please wait for next game.");
                 System.exit(0);
@@ -89,7 +92,7 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
      * @param key int client ID
      * @throws RemoteException if RMI communication fails
      */
-    public void printWinner(int key) throws RemoteException{
+    public void printWinner(int key) throws RemoteException {
         System.out.println();
         System.out.println("*******************************");
         System.out.println("Player " + key  + " is the Winner!!!!!");
@@ -136,21 +139,16 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
      * @param responses Hashmap of all recorded reponses for the round
      * @return
      */
-    /**
-     * Asks the client to vote on the best response. Takes keyboard input for the number of the vote
-     * and prints the voted for message
-     * @param responses Hashmap of all recorded reponses for the round
-     * @return
-     */
     public int gatherVote( HashMap<Integer, String> responses) {
         System.out.println("Type in the number next to the response you think is the best!");
         Scanner keyboard = new Scanner(System.in);
         String response =  keyboard.nextLine();
-        while (!isInteger(response)){
-            System.out.println("Please enter a number only");
-            response = keyboard.nextLine();
+        int responseNumber = -1;
+        try {
+            responseNumber = Integer.parseInt(response);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid vote. Vote not counted");
         }
-        int responseNumber = Integer.parseInt(response);
         int responseCounter = 0;
         int winnerKey = -1;
         String word = "";
@@ -167,39 +165,11 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
     }
 
     /**
-     * Ensures the integer value when taking in a vote
-     * @param s the vote from client
-     * @return true if the vote is an integer, false otherwise
-     */
-    public static boolean isInteger(String s) {
-        boolean isValidInteger = false;
-        try
-        {
-            Integer.parseInt(s);
-            // s is a valid integer
-            isValidInteger = true;
-        }
-        catch (NumberFormatException ex)
-        {
-            // s is not an integer
-        }
-        return isValidInteger;
-    }
-
-
-    /**
      * Saves client ID
      * @param id int client ID
      */
     public void setId(int id) {
         clientID = id;
-        // can also save the name here
-    }
-    /**
-     * Gets the client ID
-     */
-    public int getId(){
-        return clientID;
     }
 
     /**
@@ -214,81 +184,52 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
      * Takes keyboard input for a response to the displayed card
      * @throws RemoteException if RMI communication fails
      */
-//    public void getResponse() throws RemoteException {
-//
-//        Scanner keyboard = new Scanner(System.in);
-//        System.out.print("Response: ");
-//         response =  keyboard.nextLine();
-//        timer.cancel();
-//        timer.purge();
-//        task.cancel();
-//        System.out.println();
-//        coord.submitResponse(response, clientID);
-//        response = "";
-//    }
-
-//    public void getResponse() throws RemoteException {
-////        timer = new Timer();
-////        timer.schedule( task = new TimerTask() {
-////            public void run()
-////            {
-////                if( response.equals("") )
-////                {
-////                    System.out.println( "took too long to answer. You volunteered to give random vote" );
-////                    try {
-////                        coord.submitResponse("I took to long to vote :(", clientID);
-////                        task.cancel();
-////                        timer.cancel();
-////                        timer.purge();
-////                        return;
-////                    } catch (RemoteException e) {
-////                        e.printStackTrace();
-////                    }
-////                }
-////            }
-////        }, 5*1000 );
-////        System.out.println("you have 30 seconds to respond");
-////        try {
-////            getResponseWithTimer();
-////        }catch (Exception e){
-////            System.out.println("Something went wrong with timer");
-////        }
-//        TimedScanner in = new TimedScanner(System.in);
-//        System.out.print("Enter your name: ");
-//        try
-//        {
-//            String name = null;
-//            if ((name = in.nextLine(5000)) == null)
-//            {
-//                System.out.println("Too slow!");
-//                coord.submitResponse("too slow", clientID);
-//
-//            }
-//            else
-//            {
-//                System.out.println("Hello, " + name);
-//                coord.submitResponse(name, clientID);
-//            }
-//        }
-//        catch (InterruptedException | ExecutionException e)
-//        {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        }
-
-//    }
     public void getResponse() throws RemoteException {
-        Scanner keyboard = new Scanner(System.in);
+        response = "???";
+        final BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
+        class Task implements Callable<String> {
+            @Override
+            public String call() throws Exception {
+                System.out.print("15 seconds to answer. Response: ");
+                try {
+                    while (!keyboard.ready()) {
+                        Thread.sleep(100);
+                    }
+                    response = keyboard.readLine();
+                } catch (InterruptedException e) {
+                    System.out.println("Interrupted while sleeping");
+                    return "...";
+                }
+                return response;
+            }
+        }
 
-        System.out.print("Response: ");
-        String response =  keyboard.nextLine();
-        System.out.println();
-        coord.submitResponse(response, clientID);
+        Task task = new Task();
+        try {
+
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Future<String> result = executor.submit(task);
+            result.get(15, TimeUnit.SECONDS);
+            executor.shutdown();
+        } catch (Exception e) {
+            System.out.println("Exception caught " + e.getMessage());
+            if (response.equals("???")) {
+                coord.submitResponse(response, clientID);
+            }
+        }
+        if (!response.equals("???")) {
+            coord.submitResponse(response, clientID);
+        }
     }
-
     public void notifyGameFull(){
         System.out.println("Registration successful. Game is full and has started.");
     }
+
+    @Override
+    public int getId() throws RemoteException {
+        return 0;
+    }
+
     /**
      * Prints the round number at the beginning of each round
      * @param round int round number
@@ -299,4 +240,3 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
     }
 
 }
-

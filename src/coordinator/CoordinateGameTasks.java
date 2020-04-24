@@ -190,6 +190,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
     /** register the vote - it should always match the id */
     public void vote(int i) throws RemoteException {
         for (int j = 0; j < allServers.size(); j++) {
+            // TODO: SHOULD THIS BE SERVERS.GET(J) OR IS IT SUPPOSED TO BE I???
             allServers.get(i).vote(i);
         }
         checkVoteTally();
@@ -234,7 +235,6 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
      * and returns the id of the winning player if a player is found
      */
     private int checkWinner() {
-
         for( int key: scores.keySet()){
             if (scores.get(key)>=winCondition){
                 System.out.println();
@@ -332,6 +332,7 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         }
     }
 
+
     /**
      * Helper thread to handle concurrent voting
      */
@@ -353,10 +354,14 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         public void run() {
             try {
                 int winner = CoordinateGameTasks.allClients.get(clientId).gatherVote(responseList);
-                synchronized (voteLock) {
-                    int score = scores.get(winner);
-                    score++;
-                    scores.put(winner, score);
+                if (winner != -1) {
+                    synchronized (voteLock) {
+                        int score = scores.get(winner);
+                        score++;
+                        scores.put(winner, score);
+                        numVotes++;
+                    }
+                } else {
                     numVotes++;
                 }
             } catch (RemoteException e) {
@@ -364,33 +369,35 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
             }
         }
     }
-}
-
-/**
- * Helper thread to concurrently accept responses from all clients
- */
-class ResponseThread extends Thread {
-    int clientId;
 
     /**
-     * Constructor for a thread connected to a specific client
-     * @param id int client ID
+     * Helper thread to concurrently accept responses from all clients
      */
-    public ResponseThread(int id) {
-        clientId = id;
-    }
+    static class ResponseThread extends Thread {
+        int clientId;
 
-    /**
-     * Requests the client response and has the client submit it to the coordinator
-     */
-    @Override
-    public void run() {
-        try {
-            CoordinateGameTasks.allClients.get(clientId).getResponse();
-        } catch (RemoteException e) {
-            System.out.println("Remote Exception getting response");
+        /**
+         * Constructor for a thread connected to a specific client
+         * @param id int client ID
+         */
+        public ResponseThread(int id) {
+            clientId = id;
         }
-    }
 
+        /**
+         * Requests the client response and has the client submit it to the coordinator
+         */
+        @Override
+        public void run() {
+            try {
+                CoordinateGameTasks.allClients.get(clientId).getResponse();
+            } catch (RemoteException e) {
+                System.out.println("Remote Exception getting response");
+            }
+        }
+
+    }
 }
+
+
 
