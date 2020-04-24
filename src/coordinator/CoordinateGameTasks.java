@@ -347,10 +347,14 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
         public void run() {
             try {
                 int winner = CoordinateGameTasks.allClients.get(clientId).gatherVote(responseList);
-                synchronized (voteLock) {
-                    int score = scores.get(winner);
-                    score++;
-                    scores.put(winner, score);
+                if (winner != -1 && winner <= allClients.size()) {
+                    synchronized (voteLock) {
+                        int score = scores.get(winner);
+                        score++;
+                        scores.put(winner, score);
+                        numVotes++;
+                    }
+                } else {
                     numVotes++;
                 }
             } catch (RemoteException e) {
@@ -358,33 +362,35 @@ public class CoordinateGameTasks extends UnicastRemoteObject implements Coordina
             }
         }
     }
-}
-
-/**
- * Helper thread to concurrently accept responses from all clients
- */
-class ResponseThread extends Thread {
-    int clientId;
 
     /**
-     * Constructor for a thread connected to a specific client
-     * @param id int client ID
+     * Helper thread to concurrently accept responses from all clients
      */
-    public ResponseThread(int id) {
-        clientId = id;
-    }
+    static class ResponseThread extends Thread {
+        int clientId;
 
-    /**
-     * Requests the client response and has the client submit it to the coordinator
-     */
-    @Override
-    public void run() {
-        try {
-            CoordinateGameTasks.allClients.get(clientId).getResponse();
-        } catch (RemoteException e) {
-            System.out.println("Remote Exception getting response");
+        /**
+         * Constructor for a thread connected to a specific client
+         * @param id int client ID
+         */
+        public ResponseThread(int id) {
+            clientId = id;
         }
-    }
 
+        /**
+         * Requests the client response and has the client submit it to the coordinator
+         */
+        @Override
+        public void run() {
+            try {
+                CoordinateGameTasks.allClients.get(clientId).getResponse();
+            } catch (RemoteException e) {
+                System.out.println("Remote Exception getting response");
+            }
+        }
+
+    }
 }
+
+
 

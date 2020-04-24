@@ -2,6 +2,8 @@ package client;
 
 import coordinator.CoordinateGame;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
@@ -9,8 +11,12 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.sql.Time;
 import java.util.HashMap;
 import java.util.Scanner;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.*;
 
 // responsible to make calls to the coordinator that will connect the player with a server
 
@@ -22,6 +28,7 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
 
     static CoordinateGame coord;
     private Integer clientID;
+    private String response;
 
     /** RMI constructor */
     protected ClientDriver() throws RemoteException {
@@ -136,7 +143,12 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
         System.out.println("Type in the number next to the response you think is the best!");
         Scanner keyboard = new Scanner(System.in);
         String response =  keyboard.nextLine();
-        int responseNumber = Integer.parseInt(response);
+        int responseNumber = -1;
+        try {
+            responseNumber = Integer.parseInt(response);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid vote. Vote not counted");
+        }
         int responseCounter = 0;
         int winnerKey = -1;
         String word = "";
@@ -173,11 +185,41 @@ public class ClientDriver extends UnicastRemoteObject implements ClientImpl {
      * @throws RemoteException if RMI communication fails
      */
     public void getResponse() throws RemoteException {
-        Scanner keyboard = new Scanner(System.in);
-        System.out.print("Response: ");
-        String response =  keyboard.nextLine();
-        System.out.println();
-        coord.submitResponse(response, clientID);
+        response = "???";
+        final BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
+         class Task implements Callable<String> {
+             @Override
+             public String call() throws Exception {
+                 System.out.print("15 seconds to answer. Response: ");
+                 try {
+                     while (!keyboard.ready()) {
+                         Thread.sleep(100);
+                     }
+                     response = keyboard.readLine();
+                 } catch (InterruptedException e) {
+                     System.out.println("Interrupted while sleeping");
+                     return "...";
+                 }
+                 return response;
+             }
+         }
+
+         Task task = new Task();
+        try {
+
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Future<String> result = executor.submit(task);
+            result.get(15, TimeUnit.SECONDS);
+            executor.shutdown();
+        } catch (Exception e) {
+            System.out.println("Exception caught " + e.getMessage());
+            if (response.equals("???")) {
+                coord.submitResponse(response, clientID);
+            }
+        }
+        if (!response.equals("???")) {
+            coord.submitResponse(response, clientID);
+        }
     }
 
     /**
